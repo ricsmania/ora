@@ -2635,7 +2635,7 @@ func TestFils(t *testing.T) {
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(precision=2, scale=0, asdecimal=False), 'name': u'section_number', 'nullable': False}
 	// {'default': None, 'autoincrement': True, 'type': VARCHAR(length=2), 'name': u'section_type', 'nullable': True}
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'top_cm', 'nullable': True}
-	// {'defa ult': No ne, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'bot_cm', 'nullable': True}
+	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'bot_cm', 'nullable': True}
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'depth_mbsf', 'nullable': True}
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'inor_c_wt_pct', 'nullable': True}
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'caco3_wt_pct', 'nullable': True}
@@ -2643,7 +2643,7 @@ func TestFils(t *testing.T) {
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'org_c_wt_pct', 'nullable': True}
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'nit_wt_pct', 'nullable': True}
 	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'name': u'sul_wt_pct', 'nullable': True}
-	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=Fals e), 'nam e': u'h_wt_pct', 'nullable': True
+	// {'default': None, 'autoincrement': True, 'type': NUMBER(asdecimal=False), 'nam e': u'h_wt_pct', 'nullable': True
 	// https://gist.github.com/fils/ffb99e48bc3e994d54f1
 
 	testDb.Exec(`DROP TABLE test_janus`)
@@ -2655,8 +2655,8 @@ func TestFils(t *testing.T) {
 		core_type VARCHAR2(1),
 		section_number NUMBER(2),
 		section_Type VARCHAR2(2) NULL,
-		top_cm NUMBER NULL,
-		bot_cm NUMBER NULL,
+		top_cm NUMBER(6,3) NULL,
+		bot_cm NUMBER(6,3) NULL,
 		depth_mbsf NUMBER NULL,
 		inor_c_wt_pct NUMBER NULL,
 		caco3_wt_pct NUMBER NULL,
@@ -2664,7 +2664,7 @@ func TestFils(t *testing.T) {
 		org_c_wt_pct NUMBER NULL,
 		nit_wt_pct NUMBER NULL,
 		sul_wt_pct NUMBER NULL,
-		h_wt_pct NUMBER NULL
+		h_wt_pct NUMBER(6,3) NULL
 	)`); err != nil {
 		t.Fatal(err)
 	}
@@ -2673,30 +2673,42 @@ func TestFils(t *testing.T) {
 		section_type, top_cm, bot_cm, depth_mbsf,
 		inor_c_wt_pct, caco3_wt_pct, tot_c_wt_pct,
 		org_c_wt_pct, nit_wt_pct, sul_wt_pct, h_wt_pct)
-	VALUES (207, 1259, 'C', 3, 'B', 4, '@', 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)`,
+	VALUES (207, 1259, 'C', 3, 'B', 4, '@', 5.2, NULL, 7.6, 8., 9., 10., 11., NULL , 13., 14.)`,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	enableLogging(t)
+
+	if _, err := testDb.Exec(`INSERT INTO test_janus (
+		leg, site, hole, core, core_type, section_number,
+		section_type, top_cm, bot_cm, depth_mbsf,
+		inor_c_wt_pct, caco3_wt_pct, tot_c_wt_pct,
+		org_c_wt_pct, nit_wt_pct, sul_wt_pct, h_wt_pct)
+	VALUES (171, 1049, 'B', 3, 'B', 4.2, '@', NULL, 6.12, 7.12, 8, 9.99, NULL, 11., NULL , 0.8, 0.42)`,
 	); err != nil {
 		t.Fatal(err)
 	}
 
 	qry := `SELECT
-   leg, site, hole, core, core_type
- , section_number, section_type
- , top_cm, bot_cm
-  , depth_mbsf
- , inor_c_wt_pct
- , caco3_wt_pct
- , tot_c_wt_pct
- , org_c_wt_pct
- , nit_wt_pct
- , sul_wt_pct
- , h_wt_pct
-FROM
-   test_janus
-WHERE
-       leg = 207
-   AND site = 1259
-   AND hole = 'C'
-ORDER BY leg, site, hole, core, section_number, top_cm
+	   leg, site, hole, core, core_type
+	 , section_number, section_type
+	 , top_cm, bot_cm
+	  , depth_mbsf
+	 , inor_c_wt_pct
+	 , caco3_wt_pct
+	 , tot_c_wt_pct
+	 , org_c_wt_pct
+	 , nit_wt_pct
+	 , sul_wt_pct
+	 , h_wt_pct
+	FROM
+	   test_janus
+	WHERE
+	       leg = 171
+	    AND site = 1049
+	   AND hole = 'B'
+	ORDER BY leg, site, hole, core, section_number, top_cm
 `
 
 	rows, err := testDb.Query(qry)
@@ -2732,6 +2744,65 @@ ORDER BY leg, site, hole, core, section_number, top_cm
 		if err := rows.Scan(&Leg, &Site, &Hole, &Core, &Core_type, &Section_number, &Section_type, &Top_cm, &Bot_cm, &Depth_mbsf, &Inor_c_wt_pct, &Caco3_wt_pct, &Tot_c_wt_pct, &Org_c_wt_pct, &Nit_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
 			t.Fatalf("scan %d. record: %v", i, err)
 		}
+
+		t.Logf("Results: %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v %v", Leg, Site, Hole, Core, Core_type, Section_number, Section_type, Top_cm, Bot_cm, Depth_mbsf, Inor_c_wt_pct, Caco3_wt_pct, Tot_c_wt_pct, Org_c_wt_pct, Nit_wt_pct, Sul_wt_pct, H_wt_pct)
+
+	}
+	if err := rows.Err(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUnderflow(t *testing.T) {
+	testDb.Exec(`DROP TABLE test_undeflow`)
+	if _, err := testDb.Exec(`CREATE TABLE test_janus (
+		caco3_wt_pct NUMBER NULL,
+		sul_wt_pct NUMBER NULL,
+		h_wt_pct NUMBER(6,3) NULL
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testDb.Exec(`INSERT INTO test_janus (
+		caco3_wt_pct, sul_wt_pct, h_wt_pct)
+	VALUES (9., 13., 14.)`,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	enableLogging(t)
+
+	if _, err := testDb.Exec(`INSERT INTO test_janus (
+		caco3_wt_pct, sul_wt_pct, h_wt_pct)
+	VALUES (9.99, 0.8, 0.42)`,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	qry := `SELECT caco3_wt_pct, sul_wt_pct, h_wt_pct
+		FROM test_janus`
+
+	rows, err := testDb.Query(qry)
+	if err != nil {
+		t.Errorf(`Error with "%s": %s`, qry, err)
+		return
+	}
+	defer rows.Close()
+
+	i := 0
+	for rows.Next() {
+		i++
+		var (
+			Caco3_wt_pct sql.NullFloat64
+			Sul_wt_pct   sql.NullFloat64
+			H_wt_pct     sql.NullFloat64
+		)
+
+		if err := rows.Scan(&Caco3_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
+			t.Fatalf("scan %d. record: %v", i, err)
+		}
+
+		t.Logf("Results: %v %v %v", Caco3_wt_pct, Sul_wt_pct, H_wt_pct)
+
 	}
 	if err := rows.Err(); err != nil {
 		t.Error(err)
