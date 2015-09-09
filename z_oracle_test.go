@@ -2754,15 +2754,16 @@ func TestFils(t *testing.T) {
 }
 
 func TestUnderflow(t *testing.T) {
-	testDb.Exec(`DROP TABLE test_undeflow`)
-	if _, err := testDb.Exec(`CREATE TABLE test_janus (
+	tbl := "test_underflow"
+	testDb.Exec(`DROP TABLE ` + tbl)
+	if _, err := testDb.Exec(`CREATE TABLE ` + tbl + ` (
 		caco3_wt_pct NUMBER NULL,
 		sul_wt_pct NUMBER NULL,
 		h_wt_pct NUMBER(6,3) NULL
 	)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := testDb.Exec(`INSERT INTO test_janus (
+	if _, err := testDb.Exec(`INSERT INTO ` + tbl + ` (
 		caco3_wt_pct, sul_wt_pct, h_wt_pct)
 	VALUES (9., 13., 14.)`,
 	); err != nil {
@@ -2771,40 +2772,50 @@ func TestUnderflow(t *testing.T) {
 
 	enableLogging(t)
 
-	if _, err := testDb.Exec(`INSERT INTO test_janus (
+	for caseNum, test := range [][3]float64{
+		{10., 0.8, 4.2},
+		{9.19, 0.8, 0.12},
+		{9.99, 0.8, 0.42},
+	} {
+		testDb.Exec("TRUNCATE TABLE " + tbl)
+		if _, err := testDb.Exec(fmt.Sprintf(
+			`INSERT INTO `+tbl+` (
 		caco3_wt_pct, sul_wt_pct, h_wt_pct)
-	VALUES (9.99, 0.8, 0.42)`,
-	); err != nil {
-		t.Fatal(err)
-	}
-
-	qry := `SELECT caco3_wt_pct, sul_wt_pct, h_wt_pct
-		FROM test_janus`
-
-	rows, err := testDb.Query(qry)
-	if err != nil {
-		t.Errorf(`Error with "%s": %s`, qry, err)
-		return
-	}
-	defer rows.Close()
-
-	i := 0
-	for rows.Next() {
-		i++
-		var (
-			Caco3_wt_pct sql.NullFloat64
-			Sul_wt_pct   sql.NullFloat64
-			H_wt_pct     sql.NullFloat64
-		)
-
-		if err := rows.Scan(&Caco3_wt_pct, &Sul_wt_pct, &H_wt_pct); err != nil {
-			t.Fatalf("scan %d. record: %v", i, err)
+	VALUES (%f, %f, %f)`, test[0], test[1], test[2]),
+		); err != nil {
+			t.Fatalf("%d. %v", caseNum, err)
 		}
 
-		t.Logf("Results: %v %v %v", Caco3_wt_pct, Sul_wt_pct, H_wt_pct)
+		qry := `SELECT caco3_wt_pct, sul_wt_pct, h_wt_pct
+		FROM ` + tbl
 
-	}
-	if err := rows.Err(); err != nil {
-		t.Error(err)
+		rows, err := testDb.Query(qry)
+		if err != nil {
+			t.Errorf(`%d. Error with "%s": %s`, caseNum, qry, err)
+			return
+		}
+		defer rows.Close()
+
+		i := 0
+		for rows.Next() {
+			i++
+			got := make([]sql.NullFloat64, len(test))
+
+			if err := rows.Scan(&got[0], &got[1], &got[2]); err != nil {
+				t.Fatalf("scan %d. record: %v", i, err)
+			}
+
+			t.Logf("Results: %v", got)
+
+			for j, f := range got {
+				if !f.Valid || f.Float64 != test[j] {
+					t.Errorf("%d. %d. got %v, awaited %v.", caseNum, j, f, test[j])
+				}
+			}
+		}
+		if err := rows.Err(); err != nil {
+			t.Errorf("%d. %v", caseNum, err)
+		}
+		rows.Close()
 	}
 }
